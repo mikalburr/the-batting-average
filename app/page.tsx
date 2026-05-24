@@ -6,7 +6,7 @@ import { CreditCard } from "@/components/CreditCard";
 import { SongRow } from "@/components/SongRow";
 import { SiteHeader } from "@/components/SiteHeader";
 
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const [topArtists, topProducers, topEngineers, recentSongs] = await Promise.all([

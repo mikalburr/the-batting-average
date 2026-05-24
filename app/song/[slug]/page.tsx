@@ -12,7 +12,7 @@ import { CommunityRating } from "@/components/CommunityRating";
 import { TIER_COLORS } from "@/lib/scoring/constants";
 import { fmtAvg } from "@/lib/scoring/format";
 
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
 interface Props {
   params: { slug: string };

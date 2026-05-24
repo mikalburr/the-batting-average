@@ -7,7 +7,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { fmtAvg } from "@/lib/scoring/format";
 import { getTier } from "@/lib/scoring/tier";
 
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
 interface Props {
   params: { slug: string };

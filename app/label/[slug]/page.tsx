@@ -6,7 +6,7 @@ import { ArtistCard } from "@/components/ArtistCard";
 import { CreditCard } from "@/components/CreditCard";
 import { SiteHeader } from "@/components/SiteHeader";
 
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
 interface Props {
   params: { slug: string };

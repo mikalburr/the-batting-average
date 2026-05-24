@@ -9,7 +9,7 @@ import { ScoreRadar } from "@/components/charts/ScoreRadar";
 import { SiteHeader } from "@/components/SiteHeader";
 import type { Tier } from "@prisma/client";
 
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
 interface Props {
   params: { slug: string };
