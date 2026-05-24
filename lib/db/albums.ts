@@ -9,6 +9,7 @@ export async function getAlbumBySlug(slug: string) {
     include: {
       artist: { select: { name: true, slug: true } },
       songs: {
+        where: { batting_avg: { gt: 0 } },
         orderBy: { track_number: "asc" },
         select: {
           id: true, slug: true, title: true, year: true, track_number: true,

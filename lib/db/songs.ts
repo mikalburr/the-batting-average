@@ -6,7 +6,7 @@ import type { Tier } from "@prisma/client";
 
 export async function getRecentSongs(limit = 8) {
   return prisma.song.findMany({
-    where: { batting_avg: { not: null } },
+    where: { batting_avg: { gt: 0 } },
     orderBy: { createdAt: "desc" },
     take: limit,
     select: {
@@ -78,7 +78,7 @@ export async function getAllSongsByArtistSlug(artistSlug: string) {
   const artist = await prisma.artist.findUnique({ where: { slug: artistSlug }, select: { id: true } });
   if (!artist) return null;
   return prisma.song.findMany({
-    where: { primaryArtistId: artist.id },
+    where: { primaryArtistId: artist.id, batting_avg: { gt: 0 } },
     orderBy: { batting_avg: "desc" },
     include: { album: { select: { title: true, slug: true } } },
   });

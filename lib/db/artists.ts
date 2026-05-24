@@ -10,7 +10,7 @@ export async function getTopArtists(limit = 10) {
     _count: { id: true },
     orderBy: { _avg: { batting_avg: "desc" } },
     take: limit,
-    where: { batting_avg: { not: null } },
+    where: { batting_avg: { gt: 0 } },
   });
 
   const artistIds = rows.map((r) => r.primaryArtistId);
@@ -40,6 +40,7 @@ export async function getArtistBySlug(slug: string) {
       albums: {
         include: {
           songs: {
+            where: { batting_avg: { gt: 0 } },
             orderBy: { batting_avg: "desc" },
             select: {
               id: true, slug: true, title: true, year: true,
@@ -51,7 +52,7 @@ export async function getArtistBySlug(slug: string) {
         orderBy: { year: "asc" },
       },
       songs: {
-        where: { albumId: null },
+        where: { albumId: null, batting_avg: { gt: 0 } },
         orderBy: { batting_avg: "desc" },
         select: {
           id: true, slug: true, title: true, year: true,
@@ -91,7 +92,7 @@ export async function getArtistTopCredits(artistId: string) {
     where: { songs: { some: { song: { primaryArtistId: artistId } } } },
     include: {
       songs: {
-        where: { song: { primaryArtistId: artistId } },
+        where: { song: { primaryArtistId: artistId, batting_avg: { gt: 0 } } },
         include: {
           song: {
             select: {

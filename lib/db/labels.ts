@@ -10,6 +10,7 @@ export async function getLabelBySlug(slug: string) {
       artists: {
         include: {
           songs: {
+            where: { batting_avg: { gt: 0 } },
             select: {
               id: true, slug: true, title: true, year: true,
               batting_avg: true, tier: true, composite_score: true,
