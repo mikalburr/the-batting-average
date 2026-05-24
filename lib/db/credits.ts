@@ -16,7 +16,7 @@ export async function getTopCredits(role: CreditRole, limit = 5) {
     where: { role },
     include: {
       songs: {
-        where: { song: { batting_avg: { gt: 0 } } },
+        where: { song: { quality_score_calc: { gt: 0 } } },
         include: {
           song: {
             select: {
@@ -48,7 +48,7 @@ export async function getCreditBySlug(slug: string) {
     where: { slug },
     include: {
       songs: {
-        where: { song: { batting_avg: { gt: 0 } } },
+        where: { song: { quality_score_calc: { gt: 0 } } },
         include: {
           song: {
             include: {
