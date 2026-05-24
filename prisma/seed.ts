@@ -1,4 +1,5 @@
 import { buildClient } from "../lib/prisma";
+import { seedExpanded } from "./seeds/expanded";
 
 const prisma = buildClient();
 
@@ -324,6 +325,9 @@ async function main() {
     const avg = row._avg.batting_avg ?? 0;
     console.log(`   ${nameMap[row.primaryArtistId].padEnd(22)} .${(avg * 1000).toFixed(0).padStart(3, "0")}`);
   }
+
+  // ─── Expanded catalog ──────────────────────────────────────────────────────
+  await seedExpanded(prisma);
 
   console.log("\n🎉  Seed complete.");
 }

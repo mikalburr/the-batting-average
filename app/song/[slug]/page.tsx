@@ -8,6 +8,7 @@ import { ScoreBreakdown } from "@/components/ScoreBreakdown";
 import { CreditCard } from "@/components/CreditCard";
 import { ScoreRadar } from "@/components/charts/ScoreRadar";
 import { SiteHeader } from "@/components/SiteHeader";
+import { CommunityRating } from "@/components/CommunityRating";
 import { TIER_COLORS } from "@/lib/scoring/constants";
 import { fmtAvg } from "@/lib/scoring/format";
 
@@ -77,6 +78,16 @@ export default async function SongPage({ params }: Props) {
               <p className="text-xs text-text-muted font-body mt-1">batting avg</p>
             </div>
           </div>
+        </div>
+
+        {/* Editorial vs Community */}
+        <div className="mb-8">
+          <CommunityRating
+            editorialAvg={song.batting_avg}
+            editorialTier={song.tier}
+            communityAvg={song.communityAvg ?? null}
+            communityCount={song.communityCount ?? 0}
+          />
         </div>
 
         {/* Score breakdown + radar */}

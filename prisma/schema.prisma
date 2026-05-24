@@ -8,8 +8,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -119,17 +120,17 @@ model Song {
 
   // Quality sub-scores (0–100). lyricism_score nullable for instrumentals.
   lyricism_score    Float?
-  production_score  Float
-  engineering_score Float
-  creativity_score  Float
-  performance_score Float
+  production_score  Float  @default(0)
+  engineering_score Float  @default(0)
+  creativity_score  Float  @default(0)
+  performance_score Float  @default(0)
 
   // Cultural Impact sub-scores (0–100)
-  longevity_score       Float
-  sample_score          Float
-  critical_score        Float
-  cultural_moment_score Float
-  peer_score            Float
+  longevity_score       Float @default(0)
+  sample_score          Float @default(0)
+  critical_score        Float @default(0)
+  cultural_moment_score Float @default(0)
+  peer_score            Float @default(0)
 
   // Commercial raw inputs
   track_number            Int?
@@ -155,9 +156,14 @@ model Song {
   batting_avg           Float?
   tier                  Tier?
 
-  credits   SongCredit[]
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  // Community ratings cache
+  communityAvg   Float?
+  communityCount Int    @default(0)
+
+  credits  SongCredit[]
+  ratings  UserRating[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 
   @@index([primaryArtistId])
   @@index([albumId])
@@ -199,4 +205,47 @@ model Label {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Community Ratings
+// ─────────────────────────────────────────────────────────────────────────
+
+model User {
+  id        String       @id @default(cuid())
+  email     String       @unique
+  name      String?
+  password  String       // bcrypt hash
+  ratings   UserRating[]
+  createdAt DateTime     @default(now())
+}
+
+model UserRating {
+  id     String @id @default(cuid())
+  userId String
+  songId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  song   Song   @relation(fields: [songId], references: [id], onDelete: Cascade)
+
+  lyricism_score        Float?
+  production_score      Float?
+  engineering_score     Float?
+  creativity_score      Float?
+  performance_score     Float?
+  longevity_score       Float?
+  sample_score          Float?
+  critical_score        Float?
+  cultural_moment_score Float?
+  peer_score            Float?
+
+  // Computed same formula as editorial
+  composite_score Float?
+  batting_avg     Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, songId])
+  @@index([songId])
+  @@index([userId])
 }

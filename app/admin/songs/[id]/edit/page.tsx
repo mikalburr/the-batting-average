@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { SongForm } from "@/components/admin/SongForm";
 import { EnrichButton } from "@/components/admin/EnrichButton";
+import { AiScorePanelWrapper } from "./AiScorePanelWrapper";
 
 interface Props {
   params: { id: string };
@@ -22,6 +23,8 @@ export default async function EditSongPage({ params }: Props) {
   ]);
   if (!song) notFound();
 
+  const hasAiKey = !!process.env.ANTHROPIC_API_KEY;
+
   const initialData = {
     ...song,
     albumId: song.albumId ?? "",
@@ -35,13 +38,18 @@ export default async function EditSongPage({ params }: Props) {
         Edit: {song.title}
       </h1>
 
-      {/* Enrich panel — auto-fills chart position, cert level, and credits */}
-      <div className="bg-surface border border-border rounded-lg p-4 mb-6 max-w-xl">
-        <p className="text-xs text-text-muted font-body mb-3">
-          Auto-fill peak chart position, RIAA certification, and producer/engineer credits from
-          Wikidata + MusicBrainz.
-        </p>
-        <EnrichButton target="song" id={song.id} label="Enrich from APIs (Wikidata + MusicBrainz)" />
+      <div className="max-w-3xl space-y-4 mb-8">
+        {/* AI Score Draft */}
+        {hasAiKey && <AiScorePanelWrapper songId={song.id} />}
+
+        {/* Enrich panel */}
+        <div className="bg-surface border border-border rounded-lg p-4">
+          <p className="text-xs text-text-muted font-body mb-3">
+            Auto-fill peak chart position, RIAA certification, and producer/engineer credits from
+            Wikidata + MusicBrainz.
+          </p>
+          <EnrichButton target="song" id={song.id} label="Enrich from APIs (Wikidata + MusicBrainz)" />
+        </div>
       </div>
 
       <SongForm artists={artists} albums={albums} credits={credits} initialData={initialData} />
