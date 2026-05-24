@@ -1,0 +1,202 @@
+// Prisma schema for The Batting Average
+// Spec: every song carries 5 quality + 5 cultural sub-scores plus commercial raw inputs.
+// Cached compute fields (quality_score_calc, ..., composite_score, batting_avg, tier)
+// are recomputed in lib/prisma.ts middleware on every Song create/update.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────────────────
+
+enum ArtistTier {
+  SUPERSTAR
+  MAINSTREAM
+  RISING
+  INDEPENDENT
+  UNDERGROUND
+}
+
+enum Tier {
+  CLASSIC
+  GREAT
+  GOOD
+  MID
+  SKIP
+}
+
+enum CertLevel {
+  DIAMOND
+  FIVE_PLAT
+  FOUR_PLAT
+  THREE_PLAT
+  TWO_PLAT
+  PLAT
+  GOLD
+  NONE
+}
+
+enum ViralityDurability {
+  LASTING
+  FADED
+  SLOW_BURN
+}
+
+enum CreditRole {
+  PRODUCER
+  ENGINEER
+  SONGWRITER
+  FEATURE
+  VOCALIST
+}
+
+enum ChartName {
+  HOT_100
+  R_B_HIP_HOP
+  RAP
+  REGIONAL
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Models
+// ─────────────────────────────────────────────────────────────────────────
+
+model Artist {
+  id         String     @id @default(cuid())
+  name       String
+  slug       String     @unique
+  image      String?
+  bio        String?
+  era        String?
+  artistTier ArtistTier
+  labelId    String?
+  label      Label?     @relation(fields: [labelId], references: [id])
+  songs      Song[]
+  albums     Album[]
+  // External IDs for API enrichment
+  mbid       String?    // MusicBrainz Artist ID
+  spotifyId  String?    // Spotify Artist ID (Tier 2)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@index([artistTier])
+  @@index([labelId])
+}
+
+model Album {
+  id        String   @id @default(cuid())
+  title     String
+  slug      String   @unique
+  year      Int
+  artistId  String
+  artist    Artist   @relation(fields: [artistId], references: [id])
+  songs     Song[]
+  avgScore  Float?
+  image     String?  // Album artwork URL (iTunes CDN)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([artistId])
+  @@index([year])
+}
+
+model Song {
+  id              String  @id @default(cuid())
+  title           String
+  slug            String  @unique
+  year            Int
+  albumId         String?
+  album           Album?  @relation(fields: [albumId], references: [id])
+  primaryArtistId String
+  primaryArtist   Artist  @relation(fields: [primaryArtistId], references: [id])
+
+  // Quality sub-scores (0–100). lyricism_score nullable for instrumentals.
+  lyricism_score    Float?
+  production_score  Float
+  engineering_score Float
+  creativity_score  Float
+  performance_score Float
+
+  // Cultural Impact sub-scores (0–100)
+  longevity_score       Float
+  sample_score          Float
+  critical_score        Float
+  cultural_moment_score Float
+  peer_score            Float
+
+  // Commercial raw inputs
+  track_number            Int?
+  lifetime_streams        BigInt             @default(0)
+  peak_chart_position     Int?
+  chart_name              ChartName?
+  certification_level     CertLevel?
+  physical_sales          Int?
+  digital_sales           Int?
+  tiktok_video_count      Int?
+  platform_trend_peaks    Int?
+  ugc_volume              Int?
+  stream_spike_post_viral Boolean            @default(false)
+  search_volume_surge     Boolean            @default(false)
+  sync_placement_count    Int                @default(0)
+  virality_durability     ViralityDurability @default(LASTING)
+
+  // Computed + cached (recomputed by Prisma middleware on save)
+  quality_score_calc    Float?
+  cultural_impact_calc  Float?
+  commercial_score_calc Float?
+  composite_score       Float?
+  batting_avg           Float?
+  tier                  Tier?
+
+  credits   SongCredit[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([primaryArtistId])
+  @@index([albumId])
+  @@index([year])
+  @@index([batting_avg])
+  @@index([tier])
+}
+
+model Credit {
+  id    String       @id @default(cuid())
+  name  String
+  slug  String       @unique
+  role  CreditRole
+  bio   String?
+  songs SongCredit[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([role])
+}
+
+model SongCredit {
+  id       String @id @default(cuid())
+  songId   String
+  creditId String
+  song     Song   @relation(fields: [songId], references: [id], onDelete: Cascade)
+  credit   Credit @relation(fields: [creditId], references: [id], onDelete: Cascade)
+
+  @@unique([songId, creditId])
+  @@index([creditId])
+}
+
+model Label {
+  id      String   @id @default(cuid())
+  name    String
+  slug    String   @unique
+  artists Artist[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --tier-classic: #FFD700;
+  --tier-great: #00E5B0;
+  --tier-good: #4CAF50;
+  --tier-mid: #A0A0A0;
+  --tier-skip: #FF4444;
+}
+
+html,
+body {
+  background: #0a0a0a;
+  color: #e0e0e0;
+  font-family: var(--font-body), "DM Sans", system-ui, sans-serif;
+}
