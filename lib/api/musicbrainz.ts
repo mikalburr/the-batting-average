@@ -100,3 +100,131 @@ export async function getArtistMBID(name: string): Promise<string | null> {
   const artist = await searchArtist(name);
   return artist?.id ?? null;
 }
+
+// ─── Discography import ────────────────────────────────────────────────────
+
+export interface MBTrack {
+  id: string;
+  number: string;
+  title: string;
+  recording: { id: string; title: string; length?: number };
+}
+
+export interface MBMedium {
+  position?: number;
+  format?: string;
+  "track-count"?: number;
+  tracks?: MBTrack[];
+}
+
+export interface MBReleaseWithTracks {
+  id: string;
+  title: string;
+  date?: string;
+  country?: string;
+  "release-group"?: {
+    id: string;
+    title: string;
+    "first-release-date"?: string;
+    "primary-type"?: string;
+    "secondary-types"?: string[];
+  };
+  media: MBMedium[];
+}
+
+/**
+ * Get all official album releases for an artist MBID, with track listings.
+ * Uses inc=recordings+release-groups so each release has its tracklist AND
+ * its release-group metadata — meaning we can deduplicate by album in one call
+ * instead of N calls per album.
+ */
+export async function getReleasesWithTracks(artistMbid: string): Promise<MBReleaseWithTracks[]> {
+  const all: MBReleaseWithTracks[] = [];
+  let offset = 0;
+
+  while (true) {
+    const data = await mb<{ releases?: MBReleaseWithTracks[]; "release-count"?: number }>(
+      "/release",
+      {
+        artist: artistMbid,
+        type: "album",
+        status: "official",
+        inc: "recordings+release-groups",
+        limit: "100",
+        offset: String(offset),
+      },
+    );
+    const page = data?.releases ?? [];
+    all.push(...page);
+    offset += page.length;
+    if (offset >= (data?.["release-count"] ?? 0) || page.length === 0) break;
+  }
+
+  // Strip compilations, soundtracks, remixes, live albums
+  return all.filter((r) => {
+    const sec = r["release-group"]?.["secondary-types"] ?? [];
+    return !sec.some((t) =>
+      ["Compilation", "Soundtrack", "Remix", "DJ-mix", "Mixtape/Street", "Live"].includes(t),
+    );
+  });
+}
+
+export interface AlbumWithTracks {
+  releaseGroupId: string;
+  title: string;
+  year: number;
+  tracks: Array<{ recordingId: string; title: string; trackNumber: number | null }>;
+}
+
+/**
+ * Collapse raw MB releases into one AlbumWithTracks per release-group.
+ * Deduplicates tracks by recording ID (handles standard + deluxe editions).
+ */
+export function groupReleasesByAlbum(releases: MBReleaseWithTracks[]): AlbumWithTracks[] {
+  const byGroup = new Map<string, MBReleaseWithTracks[]>();
+  for (const r of releases) {
+    const rgId = r["release-group"]?.id;
+    if (!rgId) continue;
+    if (!byGroup.has(rgId)) byGroup.set(rgId, []);
+    byGroup.get(rgId)!.push(r);
+  }
+
+  const albums: AlbumWithTracks[] = [];
+
+  for (const [, group] of byGroup) {
+    const rg = group[0]["release-group"]!;
+    const rawDate = rg["first-release-date"] ?? group[0].date ?? "";
+    const year = parseInt(rawDate.slice(0, 4));
+    if (!year || isNaN(year)) continue;
+
+    // Collect all unique recordings — largest release first (gets bonus tracks too)
+    const sortedGroup = [...group].sort((a, b) => {
+      const n = (r: MBReleaseWithTracks) =>
+        r.media.reduce((s, m) => s + (m["track-count"] ?? m.tracks?.length ?? 0), 0);
+      return n(b) - n(a);
+    });
+
+    const seen = new Set<string>();
+    const tracks: AlbumWithTracks["tracks"] = [];
+
+    for (const release of sortedGroup) {
+      for (const medium of release.media) {
+        for (const track of medium.tracks ?? []) {
+          const recId = track.recording?.id;
+          if (!recId || seen.has(recId)) continue;
+          seen.add(recId);
+          tracks.push({
+            recordingId: recId,
+            title: track.recording.title ?? track.title,
+            trackNumber: parseInt(track.number) || null,
+          });
+        }
+      }
+    }
+
+    if (tracks.length === 0) continue;
+    albums.push({ releaseGroupId: rg.id, title: rg.title, year, tracks });
+  }
+
+  return albums.sort((a, b) => a.year - b.year);
+}

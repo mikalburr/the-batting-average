@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { EnrichAllButton } from "@/components/admin/EnrichAllButton";
+import { ImportDiscographyButton } from "@/components/admin/ImportDiscographyButton";
 
 export default async function AdminDashboard() {
   const [songCount, artistCount, creditCount] = await Promise.all([
@@ -21,8 +22,21 @@ export default async function AdminDashboard() {
 
   const artists = await prisma.artist.findMany({
     orderBy: { name: "asc" },
-    select: { id: true, name: true, artistTier: true, image: true, mbid: true },
+    select: {
+      id: true, name: true, artistTier: true, image: true, mbid: true,
+      _count: { select: { songs: true } },
+    },
   });
+
+  // Count unscored songs per artist (quality_score_calc IS NULL means 0-scored)
+  const unscoredCounts = await prisma.song.groupBy({
+    by: ["primaryArtistId"],
+    where: { NOT: { quality_score_calc: { gt: 0 } } },
+    _count: true,
+  });
+  const unscoredByArtist = Object.fromEntries(
+    unscoredCounts.map((r) => [r.primaryArtistId, r._count]),
+  );
 
   return (
     <div>
@@ -80,25 +94,33 @@ export default async function AdminDashboard() {
             <tr className="border-b border-border">
               <th className="py-2 px-3 text-left text-xs text-text-muted font-body">Name</th>
               <th className="py-2 px-3 text-left text-xs text-text-muted font-body">Tier</th>
-              <th className="py-2 px-3 text-left text-xs text-text-muted font-body">Image</th>
+              <th className="py-2 px-3 text-left text-xs text-text-muted font-body">Songs</th>
+              <th className="py-2 px-3 text-left text-xs text-text-muted font-body">Unscored</th>
               <th className="py-2 px-3 text-left text-xs text-text-muted font-body">MBID</th>
+              <th className="py-2 px-3 text-left text-xs text-text-muted font-body">Import</th>
               <th className="py-2 px-3 text-right text-xs text-text-muted font-body">Edit</th>
             </tr>
           </thead>
           <tbody>
-            {artists.map((artist) => (
+            {artists.map((artist) => {
+              const unscored = unscoredByArtist[artist.id] ?? 0;
+              return (
               <tr key={artist.id} className="border-b border-border hover:bg-raised">
                 <td className="py-2.5 px-3 font-body text-sm text-text-primary">{artist.name}</td>
                 <td className="py-2.5 px-3 text-xs text-text-muted">{artist.artistTier}</td>
-                <td className="py-2.5 px-3 text-xs">
-                  {artist.image ? (
-                    <span className="text-tier-good">✓</span>
+                <td className="py-2.5 px-3 text-xs font-mono text-text-muted">{artist._count.songs}</td>
+                <td className="py-2.5 px-3 text-xs font-mono">
+                  {unscored > 0 ? (
+                    <span className="text-tier-skip">{unscored}</span>
                   ) : (
                     <span className="text-text-muted">—</span>
                   )}
                 </td>
-                <td className="py-2.5 px-3 text-xs font-mono text-text-muted truncate max-w-[120px]">
+                <td className="py-2.5 px-3 text-xs font-mono text-text-muted truncate max-w-[90px]">
                   {artist.mbid ? artist.mbid.slice(0, 8) + "…" : "—"}
+                </td>
+                <td className="py-2.5 px-3 text-xs">
+                  <ImportDiscographyButton artistId={artist.id} artistName={artist.name} />
                 </td>
                 <td className="py-2.5 px-3 text-right">
                   <Link href={`/admin/artists/${artist.id}/edit`} className="text-xs text-tier-great hover:underline">
@@ -106,7 +128,8 @@ export default async function AdminDashboard() {
                   </Link>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
